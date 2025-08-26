@@ -181,9 +181,7 @@ def get_connection():
     conn = sqlite3.connect('permits.db', check_same_thread=False)
     cur = conn.cursor()
     cur.execute("CREATE INDEX IF NOT EXISTS idx_perm ON violations(PERMIT_NUMBER)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_name ON violations(PF_NAME)")
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_date ON violations(NON_COMPLIANCE_DATE)")
-    conn.commit()
+    # ... more index creation
     return conn
 
 conn = get_connection()
