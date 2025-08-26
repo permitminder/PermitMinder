@@ -188,7 +188,7 @@ def render_permit_details(permit_no: str):
     q = """
         SELECT PF_NAME, PARAMETER, SAMPLE_VALUE, PERMIT_VALUE,
                NON_COMPLIANCE_DATE, NON_COMPL_TYPE_DESC, COUNTY_NAME, PERMIT_NUMBER
-        FROM violations
+        FROM exceedances
         WHERE PERMIT_NUMBER = ?
         ORDER BY NON_COMPLIANCE_DATE DESC
     """
@@ -248,16 +248,29 @@ def render_permit_details(permit_no: str):
     st.download_button(
         label="Download CSV",
         data=csv,
-        file_name=f'permit_{permit_no}_violations.csv',
+        file_name=f'permit_{permit_no}_exceedances.csv',
         mime='text/csv'
     )
-
+# Subscription form
+    with st.form(f"subscribe_{permit_no}"):
+        st.write("**Get alerts for this permit**")
+        email = st.text_input("Email")
+        frequency = st.selectbox("Alert frequency", ["Weekly", "Monthly"])
+        submit = st.form_submit_button("Subscribe")
+        
+        if submit and email:
+            cur = conn.cursor()
+            cur.execute("INSERT INTO subscriptions VALUES (?, ?, ?, date('now'))", 
+                       (email, permit_no, frequency))
+            conn.commit()
+            st.success("Subscribed! Beta alerts starting soon.")
+            
 # Header
 st.markdown("# PermitMinder")
 st.markdown("**Track NPDES Permit Exceedances in Pennsylvania**")
 st.markdown("""
 <div class="disclaimer">
-<strong>Disclaimer:</strong> Data reflect self-reported eDMR results compared to permit limits. They are not a legal determination of a violation or enforcement finding.
+<strong>Disclaimer:</strong> Data reflect self-reported eDMR results compared to permit limits. They are not a legal determination of a exceedances or enforcement finding.
 </div>
 """, unsafe_allow_html=True)
 
@@ -270,7 +283,7 @@ if search_type == "Permit Number":
     search_query = """
         SELECT PF_NAME, PARAMETER, SAMPLE_VALUE, PERMIT_VALUE,
                NON_COMPLIANCE_DATE, NON_COMPL_TYPE_DESC, COUNTY_NAME, PERMIT_NUMBER
-        FROM violations
+        FROM exceedances
         WHERE UPPER(PERMIT_NUMBER) LIKE UPPER(?)
         ORDER BY NON_COMPLIANCE_DATE DESC
     """
@@ -281,7 +294,7 @@ else:
     search_query = """
         SELECT DISTINCT PERMIT_NUMBER, PF_NAME, COUNTY_NAME, 
                COUNT(*) as exceedance_count
-        FROM violations 
+        FROM exceedances 
         WHERE UPPER(PF_NAME) LIKE UPPER(?)
         GROUP BY PERMIT_NUMBER, PF_NAME, COUNTY_NAME
         ORDER BY exceedance_count DESC
@@ -349,14 +362,14 @@ if st.session_state.get("selected_permit"):
     del st.session_state["selected_permit"]
 
 # Database statistics
-dminmax = pd.read_sql_query("SELECT MIN(NON_COMPLIANCE_DATE) AS dmin, MAX(NON_COMPLIANCE_DATE) AS dmax FROM violations", conn).iloc[0]
+dminmax = pd.read_sql_query("SELECT MIN(NON_COMPLIANCE_DATE) AS dmin, MAX(NON_COMPLIANCE_DATE) AS dmax FROM exceedances", conn).iloc[0]
 
 with st.expander("Database Statistics"):
     c1, c2, c3, c4 = st.columns(4)
     
-    total = pd.read_sql_query("SELECT COUNT(*) AS c FROM violations", conn).iloc[0]["c"]
-    unique_permits = pd.read_sql_query("SELECT COUNT(DISTINCT PERMIT_NUMBER) AS c FROM violations", conn).iloc[0]["c"]
-    unique_facilities = pd.read_sql_query("SELECT COUNT(DISTINCT PF_NAME) AS c FROM violations", conn).iloc[0]["c"]
+    total = pd.read_sql_query("SELECT COUNT(*) AS c FROM exceedances", conn).iloc[0]["c"]
+    unique_permits = pd.read_sql_query("SELECT COUNT(DISTINCT PERMIT_NUMBER) AS c FROM exceedances", conn).iloc[0]["c"]
+    unique_facilities = pd.read_sql_query("SELECT COUNT(DISTINCT PF_NAME) AS c FROM exceedances", conn).iloc[0]["c"]
     
     c1.metric("Total Reported Exceedances", f"{total:,}")
     c2.metric("Unique Facilities", f"{unique_facilities:,}")
