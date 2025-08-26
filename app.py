@@ -243,6 +243,15 @@ def render_permit_details(permit_no: str):
         }
     )
 
+    # Add CSV export button
+    csv = display_df.to_csv(index=False)
+    st.download_button(
+        label="Download CSV",
+        data=csv,
+        file_name=f'permit_{permit_no}_violations.csv',
+        mime='text/csv'
+    )
+
 # Header
 st.markdown("# PermitMinder")
 st.markdown("**Track NPDES Permit Exceedances in Pennsylvania**")
