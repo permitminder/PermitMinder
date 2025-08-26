@@ -178,11 +178,8 @@ st.markdown("""
 # Database connection
 @st.cache_resource
 def get_connection():
-    conn = sqlite3.connect('permits.db', check_same_thread=False)
-    cur = conn.cursor()
-    cur.execute("CREATE INDEX IF NOT EXISTS idx_perm ON violations(PERMIT_NUMBER)")
-    # ... more index creation
-    return conn
+    return sqlite3.connect('permits.db', check_same_thread=False)
+
 
 conn = get_connection()
 
