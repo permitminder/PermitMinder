@@ -196,6 +196,7 @@ def render_permit_details(permit_no: str):
     
     if df.empty:
         st.error(f"No reported exceedances found for permit {permit_no}")
+        st.info("This means the facility had no permit limit exceedances from 2020-2024, or doesn't use eDMR reporting.")
         return
     
     facility = df.iloc[0]["PF_NAME"]
@@ -276,7 +277,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # Search interface - no white box wrapper
-search_type = st.radio("Search by:", ["Permit Number", "Facility Name"], horizontal=True, label_visibility="visible")
+search_type = st.radio("Search by:", ["Permit Number", "Facility Name", "County"], horizontal=True)
 
 if search_type == "Permit Number":
     search_input = st.text_input("", placeholder="PA1234567", label_visibility="collapsed")
@@ -289,19 +290,22 @@ if search_type == "Permit Number":
         ORDER BY NON_COMPLIANCE_DATE DESC
     """
     search_params = [f"%{search_value}%"] if search_value else None
-else:
+elif search_type == "Facility Name":
     search_input = st.text_input("", placeholder="Enter facility name", label_visibility="collapsed")
-    search_value = (search_input or "").strip()
+    # rest of facility code
+else:  # County
+    counties = pd.read_sql_query("SELECT DISTINCT COUNTY_NAME FROM violations ORDER BY COUNTY_NAME", conn)['COUNTY_NAME'].tolist()
+    selected_county = st.selectbox("Select County", counties)
+    search_value = selected_county
     search_query = """
         SELECT DISTINCT PERMIT_NUMBER, PF_NAME, COUNTY_NAME, 
                COUNT(*) as exceedance_count
-        FROM exceedances 
-        WHERE UPPER(PF_NAME) LIKE UPPER(?)
+        FROM violations 
+        WHERE COUNTY_NAME = ?
         GROUP BY PERMIT_NUMBER, PF_NAME, COUNTY_NAME
         ORDER BY exceedance_count DESC
-        LIMIT 20
     """
-    search_params = [f'%{search_value}%'] if search_value else None
+    search_params = [selected_county] if selected_county else None
 
 # Search results
 if search_value and search_params:
@@ -335,6 +339,7 @@ if search_value and search_params:
                     st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.error(f"No reported exceedances found for permits matching '{search_value}'")
+            st.info("This means the facility had no permit limit exceedances from 2020-2024, or doesn't use eDMR reporting.")
     
     else:  # Facility name search
         df = pd.read_sql_query(search_query, conn, params=search_params)
@@ -355,6 +360,7 @@ if search_value and search_params:
                 st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning(f"No facilities found matching '{search_value}'")
+            st.info("Try searching by permit number or partial facility name. Only facilities with exceedances appear in results.")
 
 # Handle selected permit
 if st.session_state.get("selected_permit"):
