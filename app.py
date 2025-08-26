@@ -292,7 +292,17 @@ if search_type == "Permit Number":
     search_params = [f"%{search_value}%"] if search_value else None
 elif search_type == "Facility Name":
     search_input = st.text_input("", placeholder="Enter facility name", label_visibility="collapsed")
-    # rest of facility code
+    search_value = (search_input or "").strip()
+    search_query = """
+        SELECT DISTINCT PERMIT_NUMBER, PF_NAME, COUNTY_NAME, 
+               COUNT(*) as exceedance_count
+        FROM violations 
+        WHERE UPPER(PF_NAME) LIKE UPPER(?)
+        GROUP BY PERMIT_NUMBER, PF_NAME, COUNTY_NAME
+        ORDER BY exceedance_count DESC
+        LIMIT 20
+    """
+    search_params = [f'%{search_value}%'] if search_value else None
 else:  # County
     counties = pd.read_sql_query("SELECT DISTINCT COUNTY_NAME FROM violations ORDER BY COUNTY_NAME", conn)['COUNTY_NAME'].tolist()
     selected_county = st.selectbox("Select County", counties)
