@@ -204,7 +204,7 @@ def render_permit_details(permit_no: str):
     st.markdown(f"## {facility}")
     
     # Summary cards - wider columns to prevent truncation
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns([1, 2])
     with col1:
         st.metric("County", county)
         st.metric("Permit", permit_no)
@@ -218,6 +218,7 @@ def render_permit_details(permit_no: str):
     
     display_df = df[["NON_COMPLIANCE_DATE","PARAMETER","SAMPLE_VALUE","PERMIT_VALUE","NON_COMPL_TYPE_DESC"]].copy()
     display_df.columns = ["Date","Parameter","Reported Value","Permit Limit","Event Type"]
+    display_df["Event Type"] = display_df["Event Type"].str.replace("Violation", "Exceedance")
     display_df["Date"] = pd.to_datetime(display_df["Date"]).dt.strftime("%Y-%m-%d")
     
     # Safe exceedance calculation
@@ -388,4 +389,5 @@ try:
 except:
     updated_txt = "Updated: —"
 
-st.caption(f"Data: PA DEP eDMR System | {updated_txt} | Contact: **epa.tracker.amelia@gmail.com**")
+st.caption(f"Data: PA DEP eDMR System | {updated_txt} | Contact: **permitminder@gmail.com**")
+st.caption(f"Data: PA DEP eDMR System | {updated_txt} | [Feedback](https://forms.gle/uciAb25JHxn7JVHc7) | Contact: **permitminder@gmail.com**")
