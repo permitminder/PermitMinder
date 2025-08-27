@@ -188,15 +188,15 @@ def render_permit_details(permit_no: str):
     q = """
         SELECT PF_NAME, PARAMETER, SAMPLE_VALUE, PERMIT_VALUE,
                NON_COMPLIANCE_DATE, NON_COMPL_TYPE_DESC, COUNTY_NAME, PERMIT_NUMBER
-        FROM exceedances
+        FROM violations
         WHERE PERMIT_NUMBER = ?
         ORDER BY NON_COMPLIANCE_DATE DESC
     """
     df = pd.read_sql_query(q, conn, params=[permit_no])
     
     if df.empty:
-        st.error(f"No reported exceedances found for permit {permit_no}")
-        st.info("This means the facility had no permit limit exceedances from 2020-2024, or doesn't use eDMR reporting.")
+        st.error(f"No reported violations found for permit {permit_no}")
+        st.info("This means the facility had no permit limit violations from 2020-2024, or doesn't use eDMR reporting.")
         return
     
     facility = df.iloc[0]["PF_NAME"]
@@ -210,7 +210,7 @@ def render_permit_details(permit_no: str):
         st.metric("County", county)
         st.metric("Permit", permit_no)
     with col2:
-        st.metric("Exceedances", f"{len(df):,}")
+        st.metric("violations", f"{len(df):,}")
         dmin = pd.to_datetime(df["NON_COMPLIANCE_DATE"]).min()
         dmax = pd.to_datetime(df["NON_COMPLIANCE_DATE"]).max()
         st.metric("Date Range", f"{dmin:%m/%d/%Y} – {dmax:%m/%d/%Y}")
@@ -250,7 +250,7 @@ def render_permit_details(permit_no: str):
     st.download_button(
         label="Download CSV",
         data=csv,
-        file_name=f'permit_{permit_no}_exceedances.csv',
+        file_name=f'permit_{permit_no}_violations.csv',
         mime='text/csv'
     )
 # Subscription form
@@ -269,10 +269,10 @@ def render_permit_details(permit_no: str):
             
 # Header
 st.markdown("# PermitMinder")
-st.markdown("**Track NPDES Permit Exceedances in Pennsylvania**")
+st.markdown("**Track NPDES Permit violations in Pennsylvania**")
 st.markdown("""
 <div class="disclaimer">
-<strong>Disclaimer:</strong> Data reflect self-reported eDMR results compared to permit limits. They are not a legal determination of a exceedances or enforcement finding.
+<strong>Disclaimer:</strong> Data reflect self-reported eDMR results compared to permit limits. They are not a legal determination of a violations or enforcement finding.
 </div>
 """, unsafe_allow_html=True)
 
@@ -285,7 +285,7 @@ if search_type == "Permit Number":
     search_query = """
         SELECT PF_NAME, PARAMETER, SAMPLE_VALUE, PERMIT_VALUE,
                NON_COMPLIANCE_DATE, NON_COMPL_TYPE_DESC, COUNTY_NAME, PERMIT_NUMBER
-        FROM exceedances
+        FROM violations
         WHERE UPPER(PERMIT_NUMBER) LIKE UPPER(?)
         ORDER BY NON_COMPLIANCE_DATE DESC
     """
@@ -341,15 +341,15 @@ if search_value and search_params:
                     col1, col2, col3 = st.columns([4, 2, 1])
                     col1.markdown(f"**{facility_name}**")
                     col2.markdown(f"{county} County")
-                    col3.markdown(f"{len(facility_df):,} reported exceedances")
+                    col3.markdown(f"{len(facility_df):,} reported violations")
                     
                     if st.button("View", key=f"perm_{permit}", type="primary"):
                         st.session_state['selected_permit'] = permit
                         st.rerun()
                     st.markdown('</div>', unsafe_allow_html=True)
         else:
-            st.error(f"No reported exceedances found for permits matching '{search_value}'")
-            st.info("This means the facility had no permit limit exceedances from 2020-2024, or doesn't use eDMR reporting.")
+            st.error(f"No reported violations found for permits matching '{search_value}'")
+            st.info("This means the facility had no permit limit violations from 2020-2024, or doesn't use eDMR reporting.")
     
     else:  # Facility name search
         df = pd.read_sql_query(search_query, conn, params=search_params)
@@ -362,7 +362,7 @@ if search_value and search_params:
                 col1, col2, col3 = st.columns([4, 2, 1])
                 col1.markdown(f"**{row['PF_NAME']}**")
                 col2.markdown(f"{row['COUNTY_NAME']} County")
-                col3.markdown(f"{row['exceedance_count']:,} reported exceedances")
+                col3.markdown(f"{row['exceedance_count']:,} reported violations")
                 
                 if st.button("View", key=f"fac_{idx}", type="primary"):
                     st.session_state['selected_permit'] = row['PERMIT_NUMBER']
@@ -370,7 +370,7 @@ if search_value and search_params:
                 st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.warning(f"No facilities found matching '{search_value}'")
-            st.info("Try searching by permit number or partial facility name. Only facilities with exceedances appear in results.")
+            st.info("Try searching by permit number or partial facility name. Only facilities with violations appear in results.")
 
 # Handle selected permit
 if st.session_state.get("selected_permit"):
@@ -379,16 +379,16 @@ if st.session_state.get("selected_permit"):
     del st.session_state["selected_permit"]
 
 # Database statistics
-dminmax = pd.read_sql_query("SELECT MIN(NON_COMPLIANCE_DATE) AS dmin, MAX(NON_COMPLIANCE_DATE) AS dmax FROM exceedances", conn).iloc[0]
+dminmax = pd.read_sql_query("SELECT MIN(NON_COMPLIANCE_DATE) AS dmin, MAX(NON_COMPLIANCE_DATE) AS dmax FROM violations", conn).iloc[0]
 
 with st.expander("Database Statistics"):
     c1, c2, c3, c4 = st.columns(4)
     
-    total = pd.read_sql_query("SELECT COUNT(*) AS c FROM exceedances", conn).iloc[0]["c"]
-    unique_permits = pd.read_sql_query("SELECT COUNT(DISTINCT PERMIT_NUMBER) AS c FROM exceedances", conn).iloc[0]["c"]
-    unique_facilities = pd.read_sql_query("SELECT COUNT(DISTINCT PF_NAME) AS c FROM exceedances", conn).iloc[0]["c"]
+    total = pd.read_sql_query("SELECT COUNT(*) AS c FROM violations", conn).iloc[0]["c"]
+    unique_permits = pd.read_sql_query("SELECT COUNT(DISTINCT PERMIT_NUMBER) AS c FROM violations", conn).iloc[0]["c"]
+    unique_facilities = pd.read_sql_query("SELECT COUNT(DISTINCT PF_NAME) AS c FROM violations", conn).iloc[0]["c"]
     
-    c1.metric("Total Reported Exceedances", f"{total:,}")
+    c1.metric("Total Reported violations", f"{total:,}")
     c2.metric("Unique Facilities", f"{unique_facilities:,}")
     c3.metric("Unique Permits", f"{unique_permits:,}")
     
